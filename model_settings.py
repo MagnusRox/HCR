@@ -20,6 +20,6 @@ output_postprocessed_corruption_removed_data = 'Post-processing/processed-corrup
 model_image_size = (360, 160)
 model_config = {
     'batch': 64,
-    'epochs': 10,
+    'epochs': 30,
     'learning_rate': 0.001
 }

@@ -1,5 +1,4 @@
 import datetime
-import math
 
 import pandas as pd
 import tensorflow as tf
@@ -12,6 +11,7 @@ def preprocess_image(path, text, image_size):
     try:
         image = tf.io.read_file(path)
         image = tf.image.decode_image(image, channels=3, expand_animations=False, dtype=tf.uint8)
+        image = tf.image.rgb_to_grayscale(image)
         image = tf.cast(image, tf.float32) / 255.0
         image = tf.image.resize(image, image_size)
         return image, text
@@ -46,10 +46,16 @@ def create_cnn_model(input_shape, num_classes, optimizer , loss_fn):
     # Flatten layer
     flatten = layers.Flatten()(pool4)
 
+    #Introducing dropout before feeding it into the fully connected layers
+    dropout1 = layers.Dropout(0.25)(flatten)
+
     # Fully connected layers
-    fc1 = layers.Dense(512, activation='relu')(flatten)
-    dropout = layers.Dropout(0.5)(fc1)
-    fc2 = layers.Dense(256, activation='relu')(dropout)
+    fc1 = layers.Dense(512, activation='relu')(dropout1)
+
+    #Introducing dropout before feeding it into the second fully connected layer
+    dropout2 = layers.Dropout(0.25)(fc1)
+
+    fc2 = layers.Dense(256, activation='relu')(dropout2)
 
     # Output layer
     output = layers.Dense(num_classes, activation='softmax')(fc2)
@@ -120,55 +126,19 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=ms.model_config['learning_rat
 loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
 
-model, early_stopping, tensorboard_callback = create_cnn_model(input_shape=(360, 160, 3), num_classes=vocab_size, optimizer=optimizer, loss_fn=loss_fn)
+model, early_stopping, tensorboard_callback = create_cnn_model(input_shape=(360, 160, 1), num_classes=vocab_size, optimizer=optimizer, loss_fn=loss_fn)
 
 train_acc_metric = keras.metrics.SparseCategoricalAccuracy()
 val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
 
 
 max_iterations = len(preprocessed_train_dataset)+1
-#max_iterations = 5
 
-for epoch in range(epochs):
-    iterator = iter(preprocessed_train_dataset)
-    print("\nStart of epoch %d" % (epoch,))
-    # Iterate over the batches of the dataset.
-    i = 0
-    while i < max_iterations:
-        print("Currently running {} batch".format(i))
-        try:
-            i = i + 1
-            x_batch_train, y_batch_train = next(iterator)
-            with tf.GradientTape() as tape:
-                logits = model(x_batch_train, training=True)
-                loss_value = loss_fn(y_batch_train, logits)
-
-            grads = tape.gradient(loss_value, model.trainable_weights)
-            optimizer.apply_gradients(zip(grads, model.trainable_weights))
-
-            # Log every 200 batches.
-            if i % 200 == 0:
-                print(
-                    "Training loss (for one batch) at step %d: %.4f"
-                    % (i, float(loss_value))
-                )
-                print("Seen so far: %s samples" % ((i + 1) * batch_size))
-
-            train_acc = train_acc_metric.result()
-            print("Training acc over epoch: %.4f" % (float(train_acc),))
-
-            # Reset training metrics at the end of each epoch
-            train_acc_metric.reset_states()
-            for x_batch_val, y_batch_val in preprocessed_val_dataset:
-                val_logits = model(x_batch_val, training=False)
-                # Update val metrics
-                val_acc_metric.update_state(y_batch_val, val_logits)
-            val_acc = val_acc_metric.result()
-            val_acc_metric.reset_states()
-            print("Validation acc: %.4f" % (float(val_acc),))
-        except Exception as e:
-            print(e)
-            continue
-
+model.fit(
+    preprocessed_train_dataset,
+    epochs=epochs,
+    validation_data=preprocessed_val_dataset,
+    callbacks=[early_stopping, tensorboard_callback]
+)
 # Evaluate the model
 test_loss, test_accuracy = model.evaluate(preprocessed_test_dataset)
