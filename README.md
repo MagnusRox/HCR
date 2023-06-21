@@ -7,7 +7,7 @@ The End goal of this model is to accept any text as an image and then convert th
 
 Create a folder called "DataSets" and unzip "sample.zip" there.
 
-##Data Preprocessing.
+## Data Preprocessing.
 
 One of the critical steps for making the machine learning models better.
 The following techniques are applied to the model.
@@ -15,7 +15,7 @@ The following techniques are applied to the model.
 • The ink color can be blue, green, red, or black. The only color in this dataset is black and so I have converted all the images to black and white.
 • THe next step applied is having different saturation levels to the images so that images taken under different environments will also work with the model.
 
-##Model Architecture
+## Model Architecture
 
 The model uses a simple custom CNN with 15 layers overall.
 In the IAM dataset, there are over 11000 unique words each of which is a class to be predicted
